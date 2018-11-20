@@ -1,0 +1,1070 @@
+<template>
+    <div class="container">
+    
+      <div v-if="weixin" class="weixin-cover">
+        <img src="assets/guide.png">
+        <img style="width: 33%;" src="assets/logo.png">
+      </div>
+    
+      <div v-if="!images.ready" class="loading-layer">
+        <div  class="loading-anima" :style="style.loading">
+          <div class="line"></div>
+          <div class="line"></div>
+          <div class="line"></div>
+        </div>
+      </div>
+    
+      <swiper :options="swiperOption" ref="mySwiper" :style="{width: '100%', height: '100%'}">
+        <!-- slides -->
+        <swiper-slide>
+          <div class="swiper-box page-1">
+            <img class="logo" id="logo_1" src="assets/logo.png" :style="style.logo" />
+            <div class="cover" id="cover_1" :style="style.cover">
+              <img class="cover-img" id="cover-img" src="assets/cover.png"/>
+              <canvas
+                width="400" 
+                height="600" 
+                :style="style.coverCanvas"
+                id="cover-canvas"
+              ></canvas>
+              <div class="fade" id="fade-mask" >
+                <div>
+                  <img class="arrow animated infinite fadeInUp" src="assets/up-arrow.png"/>
+                  <div class="txt">
+                      <img src="assets/guide-text.png"/>
+                  </div>
+                </div>
+              </div>  
+              <br class="clearfix"/>   
+            </div>
+          </div>
+        </swiper-slide>
+        <swiper-slide>
+    
+          <div class="swiper-box page-2">
+    
+            <img 
+              :src="images.list[images.active] ? images.list[images.active].src : ''" 
+              class="xbgi ease-elem"
+              :style="{
+                width: xbgi.d + 'px',
+                height: xbgi.d + 'px',
+                left: xbgi.left + 'px',
+                top: xbgi.top + 'px',
+              }"
+            >
+            <div class="camera_loading" v-if="!camera_ready">
+              摄像机启动中
+            </div>
+            <div class="main" id="main-container">
+              <video  :width="1080" controls="true" preload  id="video" autoplay playsinline> 
+              </video>
+            </div>
+            <div class="next_btn ease-elem"  id="next_btn" @click="changeImage" :style="this.style.nextBtn">
+              下一页  
+            </div>        
+          </div>
+    
+        </swiper-slide>
+      </swiper>  
+    </div>
+    </template>
+    
+    <script>
+    import { mapGetters } from "vuex";
+    
+    import "swiper/dist/css/swiper.css";
+    
+    import { swiper, swiperSlide } from "vue-awesome-swiper";
+    
+    import Seriously from "./modules/index";
+    import blend from "./modules/blend.js";
+    import chroma from "./modules/chroma.js";
+    import split from "./modules/split.js";
+    import fit_fac from "./modules/fit.js";
+    const fit = fit_fac();
+    import * as PIXI from "pixi.js";
+    
+    function ChromaFilter() {
+      const vertexShader = null;
+      const fragmentShader = [
+        "varying vec2 vTextureCoord;",
+    
+        "uniform float thresholdSensitivity;",
+        "uniform float smoothing;",
+        "uniform vec3 colorToReplace;",
+        "uniform sampler2D uSampler;",
+    
+        "void main() {",
+        "vec4 textureColor = texture2D(uSampler, vTextureCoord);",
+    
+        "float maskY = 0.2989 * colorToReplace.r + 0.5866 * colorToReplace.g + 0.1145 * colorToReplace.b;",
+        "float maskCr = 0.7132 * (colorToReplace.r - maskY);",
+        "float maskCb = 0.5647 * (colorToReplace.b - maskY);",
+    
+        "float Y = 0.2989 * textureColor.r + 0.5866 * textureColor.g + 0.1145 * textureColor.b;",
+        "float Cr = 0.7132 * (textureColor.r - Y);",
+        "float Cb = 0.5647 * (textureColor.b - Y);",
+    
+        "float blendValue = smoothstep(thresholdSensitivity, thresholdSensitivity + smoothing, distance(vec2(Cr, Cb), vec2(maskCr, maskCb)));",
+        "float solid = textureColor.a * blendValue;",
+        "float alpha = step(0.6, blendValue);",
+        //"gl_FragColor = vec4(textureColor.r, textureColor.g, textureColor.b, alpha);",
+        "gl_FragColor = textureColor * alpha;",
+        // "gl_FragColor = vec4(0.0,0.0,0.0,0.0);",
+        "}"
+      ].join("\n");
+    
+      let uniforms = {};
+    
+      PIXI.Filter.call(this, vertexShader, fragmentShader);
+    
+      this.uniforms.thresholdSensitivity = 0.1;
+      this.uniforms.smoothing = 0.1;
+      this.uniforms.colorToReplace = [30 / 255, 160 / 255, 30 / 255];
+    }
+    
+    ChromaFilter.prototype = Object.create(PIXI.Filter.prototype);
+    ChromaFilter.prototype.constructor = ChromaFilter;
+    
+    blend(Seriously);
+    chroma(Seriously);
+    split(Seriously);
+    
+    const image_path_arr = [
+      "./bgi/b5.jpg",
+      //"./bgi/cube2.jpg",
+      "./bgi/b6.jpg",
+      "./bgi/b7.jpg",
+      "./bgi/b1.jpg",
+      "./bgi/b2.jpg",
+      "./bgi/b3.jpg",
+      "./bgi/b8.jpg",
+      "./bgi/b9.jpg",
+      "./bgi/b10.jpg",
+      "./bgi/b11.jpg",
+      "./bgi/b12.jpg",
+      "./bgi/b13.jpg",
+      "./bgi/b14.jpg",
+      "./bgi/b15.jpg"
+    ];
+    export default {
+      data() {
+        return {
+          fire2: {},
+          pixi: {},
+          xbgi: {
+            d: 0,
+            left: 0,
+            top: 0,
+            theta: 0
+          },
+          direction: "v",
+          cover: {
+            canvas: {
+              w: 0,
+              height: 0
+            }
+          },
+          style: {
+            loadingAnima: {},
+            logo: {},
+            cover: {},
+            coverCanvas: {},
+            nextBtn: {}
+          },
+          weixin: false,
+          camera_ready: false,
+          camera_processing: false,
+          images: {
+            list: [],
+            ready: false,
+            active: 1
+          },
+          image_reformat: null,
+          style: {
+            width: window.innerWidth,
+            height: window.innerHeight
+          },
+          swiperOption: {
+            direction: "vertical",
+            resistanceRatio: 0.2,
+            allowSlidePrev: false,
+            on: {
+              slideChange: () => {
+                if (this.swiper.activeIndex == 1) {
+                  window.clearInterval(this.cover.timer);
+                  if (!this.camera_ready) {
+                    window.setTimeout(() => {
+                      this.init();
+                    }, 680);
+                  }
+                }
+                if (this.swiper.activeIndex == 0) {
+                  this.startCoverAnima();
+                }
+              },
+              sliderMove: e => {}
+            }
+          }
+        };
+      },
+      components: {
+        swiper,
+        swiperSlide
+      },
+      created() {
+        // this.setDirection();
+        // this.initStyle();
+      },
+    
+      computed: {
+        ...mapGetters(["app"]),
+        swiper() {
+          return this.$refs.mySwiper.swiper;
+        }
+      },
+      mounted() {
+        this.setDirection();
+        this.initStyle();    
+        if (this.isWeixinBrowser()) {
+          console.log("WEIXIN");
+          this.weixin = true;
+        } else {
+          this.loadImages();
+          this.initXBGI();
+          this.initSeriously();
+        }
+        window.addEventListener(
+          "orientationchange",
+          this.updateOrientation.bind(this),
+          false
+        );
+      },
+    
+      methods: {
+    
+        adjustPadding() {
+          if (window.innerHeight / window.innerWidth > 1.8) {
+            $('.page-1').css({paddingTop: '100px'})
+          } else {
+            $('.page-1').css({paddingTop: '16px'})
+          }
+        },
+        initXBGI() {
+          const h = window.innerHeight;
+          const w = window.innerWidth;
+          const d = Math.sqrt(h * h + w * w);
+          this.xbgi.d = d;
+          this.xbgi.left = -(d - w) / 2;
+          this.xbgi.top = -(d - h) / 2;
+        },
+        initStyle() {
+    
+          this.adjustPadding();
+          this.style.logo = this.getLogoStyle();
+          $('#logo_1').css(this.getLogoStyle())
+          this.style.loading = this.getLoadingStyle();
+          this.style.nextBtn = this.getNextBtnStyle();
+          $('#next_btn').css(this.style.nextBtn)
+          $('#cover_1').css(this.getCoverStyle())
+          this.style.cover = this.getCoverStyle();
+        },
+        setDirection() {
+          if (window.innerWidth > window.innerHeight) {
+            this.direction = "h";
+          } else {
+            this.direction = "v";
+          }
+        },
+    
+        getDirection() {
+          if (window.innerWidth > window.innerHeight) {
+            return "h";
+          } else {
+            return "v";
+          }
+        },
+        updateOrientation() {
+          this.setDirection()
+          this.swiper.height = window.innerHeight
+          this.swiper.width = window.innerWidth
+    
+          window.setTimeout( () => {
+            this.initStyle()
+            this.updateVideoSize()
+          }, 200);
+        },
+        initCover() {
+          const direction = this.getDirection()
+          const ratio = direction == "h" ? 0.3 : 0.8;
+          const img_w = window.innerWidth * ratio;
+          const img_h = img_w * 1.294;
+          console.log(img_w, img_h);
+          this.cover.height = img_h;
+          this.cover.width = img_w;
+          this.cover.canvas.w = (img_w * 0.6).toFixed(0);
+          this.cover.canvas.h = (img_h * 0.7).toFixed(0);
+    
+          this.style.coverCanvas = {
+            width: (img_w * 0.6).toFixed(0) + 'px',
+            height: (img_h * 0.7).toFixed(0) + 'px'
+          }
+    
+          $('#cover-canvas').css(this.style.coverCanvas)
+    
+          const delta =
+            (direction == "h" ? 70 : 124) + img_h - window.innerHeight;
+    
+          if (delta < 0) {
+            this.cover.fadeBottom = -2;
+          } else {
+            this.cover.fadeBottom = Math.abs(delta) + 4;
+          }
+    
+          $('#fade-mask').css({
+            bottom: this.cover.fadeBottom + 'px'
+          })
+        },
+    
+        initCoverAnima() {
+          let index = 0;
+          let canvas = document.getElementById("cover-canvas");
+          let seriously = new Seriously();
+          let image_reformat = seriously.transform("reformat");
+          this.cover.image_reformat = image_reformat;
+          image_reformat.mode = "cover";
+          image_reformat.width = 400;
+          image_reformat.height = 600;
+          image_reformat.source = this.images.list[index];
+    
+          let target = seriously.target(canvas);
+          target.source = image_reformat;
+          seriously.go();
+          this.startCoverAnima();
+        },
+        startCoverAnima() {
+          let index = 0;
+          this.cover.timer = window.setInterval(() => {
+            index += 2;
+            if (index >= this.images.list.length) {
+              index = 1;
+            }
+            this.cover.image_reformat.source = this.images.list[index];
+          }, 200);
+        },
+        init() {
+          if (this.camera_processing) {
+            console.log("相机正在启动，请稍等");
+            return false;
+          }
+          console.log("开始启动相机");
+          this.initCamera();
+          // window.setTimeout(() => {
+          //   this.setUpVideo();
+          // }, 5000)
+        },
+        initSeriously() {
+          this.seriously = new Seriously();
+        },
+        isUC() {
+          const ua = navigator.userAgent.toLowerCase();
+          if (ua.indexOf("ucbrowser") > -1) {
+            return true;
+          } else {
+            return false;
+          }
+        },
+        isIphoneX() {
+          return (
+            /iphone/gi.test(navigator.userAgent) &&
+            (screen.height == 812 && screen.width == 375)
+          );
+        },
+        isQQ() {
+          const ua = navigator.userAgent.toLowerCase();
+          if (ua.indexOf("mqqbrowser") > -1) {
+            return true;
+          } else {
+            return false;
+          }
+        },
+        isMobile() {
+          if (/(iPhone|iPad|iPod|iOS|Android)/i.test(navigator.userAgent)) {
+            //移动端
+            return true;
+          } else {
+            return false;
+          }
+        },
+        isWeixinBrowser() {
+          var agent = navigator.userAgent.toLowerCase();
+          if (agent.match(/MicroMessenger/i) == "micromessenger") {
+            return true;
+          } else {
+            return false;
+          }
+        },
+        animateInterval(callback, time, finished) {
+          const start = Date.now();
+          function runner() {
+            const diff = Date.now() - start;
+            if (diff < time) {
+              callback(diff);
+              setTimeout(runner, 4);
+            } else if (finished) {
+              finished();
+            }
+          }
+          runner();
+        },
+        changeImage() {
+          this.images.active += 1;
+          if (this.images.active > this.images.list.length - 1) {
+            this.images.active = 1;
+          }
+        },
+    
+        onAssetsLoaded() {
+          this.initCoverAnima();
+          this.images.ready = true;
+        },
+        loadImages() {
+          const self = this;
+          if (image_path_arr.length == 0) {
+            return self.onAssetsLoaded();
+          }
+          const path = image_path_arr.pop();
+          const index = image_path_arr.length;
+          var image = document.createElement("img");
+          image.addEventListener("load", () => {
+            this.images.list.push(image);
+            self.loadImages();
+          });
+          image.addEventListener("error", () => {
+            self.loadImages();
+          });
+    
+          image.src = path;
+        },
+        genImageSource(index) {
+          const seriously = this.seriously;
+          const image_reformat = seriously.transform("reformat");
+          image_reformat.mode = "cover";
+          image_reformat.width = this.style.width;
+          image_reformat.height = this.style.height;
+          image_reformat.source = this.images.list[index];
+          return image_reformat;
+        },
+        async initCamera() {
+          this.camera_processing = true;
+          const constraints = {
+            audio: false,
+            video: {
+              facingMode: "environment"
+              // width: { min: 320, ideal: 320, max: 480 },
+              // height: { min: 320, ideal: 320, max: 480 }
+            }
+          };
+    
+          const self = this;
+    
+          window.URL =
+            window.URL || window.webkitURL || window.mozURL || window.msURL;
+    
+          function handleSuccess(stream) {
+            const video = document.querySelector("video");
+            const videoTracks = stream.getVideoTracks();
+            console.log("Got stream with constraints:", constraints);
+            console.log(`Using video device: ${videoTracks[0].label}`);
+            window.stream = stream; // make variable available to browser console
+            video.srcObject = stream;
+            video.play();
+    
+            video.addEventListener("play", () => {
+              console.log("VIDEO PLAY");
+    
+    
+              self.setUpVideo();
+            });
+          }
+    
+          function handleError(error) {
+            if (error.name === "ConstraintNotSatisfiedError") {
+              let v = constraints.video;
+              errorMsg(
+                `The resolution ${v.width.exact}x${
+                  v.height.exact
+                } px is not supported by your device.`
+              );
+            } else if (error.name === "PermissionDeniedError") {
+              errorMsg(
+                "Permissions have not been granted to use your camera and " +
+                  "microphone, you need to allow the page access to your devices in " +
+                  "order for the demo to work."
+              );
+            }
+            errorMsg(`getUserMedia error: ${error.name}`, error);
+          }
+          function errorMsg(msg, error) {
+            // alert(
+            //   "您正在使用的浏览器不支持，请使用Chrome,火狐或者Safari体验完整功能！"
+            // );
+            //alert(msg);
+            console.log(msg);
+            console.error(error);
+          }
+    
+          if (this.isUC()) {
+            navigator.getUserMedia(
+              {
+                video: true
+              },
+              handleSuccess,
+              handleError
+            );
+            return false;
+          }
+    
+          if (this.isQQ()) {
+            alert(
+              "您正在使用的浏览器不支持，请使用Chrome,火狐或者Safari体验完整功能！"
+            );
+            return false;
+          }
+    
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            handleSuccess(stream);
+          } catch (err) {
+            handleError(err);
+          }
+        },
+        setUpVideo() {
+          if (this.isIphoneX()) {
+            this.fireVideo2();
+          } else {
+            this.fireVideo();
+          }
+        },
+    
+    
+        showV() {
+          this.camera_processing = false;
+          this.camera_ready = true;
+        },
+    
+        pixi_resize() {
+          const renderer = this.pixi.renderer;
+          const videoSprite = this.pixi.videoSprite;
+          const videoTexture = this.pixi.texture
+    
+          const w = window.innerWidth;
+          const h = window.innerHeight;
+    
+          renderer.resize(w, h);
+    
+          const area = {
+            x: 0,
+            y: 0,
+            width: renderer.width,
+            height: renderer.height
+          };
+          const rect = {
+            x: 0,
+            y: 0,
+            width: videoTexture.width,
+            height: videoTexture.height
+          };
+          const fitResult = fit(rect, area, {
+            hAlign: fit.CENTER,
+            vAlign: fit.CENTER,
+            cover: true,
+            watch: false,
+            apply: false
+          });
+          console.log(fitResult);
+          videoSprite.width = fitResult.width;
+          videoSprite.height = fitResult.height;
+          videoSprite.position.x = fitResult.tx;
+          videoSprite.position.y = fitResult.ty;
+    
+          window.setTimeout(() => {
+            this.showV()
+          }, 100)
+    
+        },
+        fireVideo2() {
+    
+          if (this.fire2.stage) {
+            window.clearInterval(this.fire2.timer)
+            $('.main canvas').remove()
+    
+            this.fire2.stage.destroy()
+    
+          }
+    
+          const stage = new PIXI.Container();
+    
+          this.fire2.stage = stage;
+          const renderer = new PIXI.autoDetectRenderer(
+            0,
+            0,
+            {
+              autoResize: true,
+              smoothProperty: true,
+              preserveDrawingBuffer: true,
+              clearBeforeRender: true,
+              transparent: true,
+              resolution: 1
+            }
+          );
+    
+          this.pixi.renderer = renderer;
+          document.getElementById("main-container").appendChild(renderer.view);
+          const video = document.getElementById("video");
+          const texture = PIXI.Texture.fromVideo(video, PIXI.SCALE_MODES.LINEAR);
+          this.pixi.texture = texture
+          const videoSprite = new PIXI.Sprite(texture);
+          this.pixi.videoSprite = videoSprite;
+          stage.addChild(videoSprite);
+    
+          const filter = new ChromaFilter();
+          videoSprite.filters = [filter];
+    
+          window.setTimeout(() => {
+            this.pixi_resize();
+          }, 500)
+    
+    
+          // RENDERLOOP
+    
+    
+          this.fire2.timer = window.setInterval( () => {
+            renderer.render(stage);
+          }, 25)
+          // const renderLoop = () => {
+          //   window.setTimeout(() => {
+          //     window.requestAnimationFrame(renderLoop);
+          //   }, 1000 / 24);
+          // };
+          // renderLoop();
+        },
+    
+        genCanvasElement() {
+    
+          if (this.canvas_id) {
+            $('#' + this.canvas_id).remove()
+          }
+    
+          if (this.seriously) {
+            this.seriously.destroy()
+          }
+          this.canvas_id = 'canvas_' + (Math.random() + '').split('.')[1]
+          $('.main').append(`<canvas id="${this.canvas_id}"></canvas>`)
+          document.getElementById(this.canvas_id).width = window.innerWidth
+          document.getElementById(this.canvas_id).height = window.innerHeight
+          return document.getElementById(this.canvas_id)
+    
+        },
+        fireVideo() {
+    
+          this.camera_ready = true;
+          const canvas = this.genCanvasElement()
+          const seriously = new Seriously();
+          const video = document.getElementById("video");
+    
+          const chroma = seriously.effect("chroma");
+          const video_reformat = seriously.transform("reformat");
+          const target = seriously.target(canvas);
+    
+          video_reformat.source = video;
+          video_reformat.mode = "cover";
+          video_reformat.width = window.innerWidth;
+          video_reformat.height = window.innerHeight;
+          
+          chroma.weight = 1;
+          chroma.balance = 0.3;
+          chroma.screen = "rgb(35, 80, 35)";
+          chroma.clipWhite = 1;
+          chroma.clipBlack = 0;
+          chroma.source = video_reformat;
+          target.source = chroma;
+          seriously.go();      
+    
+        },
+        updateVideo() {
+          const seriously = new Seriously();
+          const video = document.getElementById("video");
+          const chroma = seriously.effect("chroma");
+          const video_reformat = seriously.transform("reformat");
+          $('.main').append('<canvas id="xxxx"></canvas>')
+          const canvas = document.getElementById("xxxx");
+    
+          canvas.width = window.innerWidth
+          canvas.height = window.innerHeight
+          const target = seriously.target(canvas);
+    
+            video_reformat.source = video;
+            video_reformat.mode = "cover";
+            video_reformat.width = window.innerWidth;
+            video_reformat.height = window.innerHeight;    
+            
+            chroma.weight = 1;
+            chroma.balance = 0.3;
+            chroma.screen = "rgb(35, 80, 35)";
+            chroma.clipWhite = 1;
+            chroma.clipBlack = 0;
+            chroma.source = video_reformat;        
+    
+            target.source = chroma;
+            seriously.go();
+    
+        },    
+    
+        updateVideoSize() {
+    
+          if (this.isIphoneX()) {
+            this.fireVideo2()
+          } else {
+            this.fireVideo()
+          }
+          //this.updateVideo()
+    
+          // $('.main').append('<canvas id="xxxx"></canvas>')
+          // const canvas = document.getElementById("xxxx");
+          // this.target = seriously.target(canvas);
+    
+    
+          // const seriously = this.seriously;
+          // const video_reformat = seriously.transform("reformat");
+          // const video = document.getElementById("video");
+          // video_reformat.source = video;
+          // video_reformat.mode = "cover";
+          // video_reformat.width = window.innerWidth;
+          // video_reformat.height = window.innerHeight;   
+          // this.video_reformat = video_reformat;
+          // this.chroma.source = video_reformat;
+          // const target = seriously.target(canvas);
+          // target.source = 
+        },
+        animaBtn() {
+          const btn = $("#anima_btn");
+          btn.removeClass("animated");
+          btn.removeClass("pulse");
+          btn
+            .addClass("pulse animated")
+            .one(
+              "webkitAnimationEnd mozAnimationEnd MSAnimationEnd oanimationend animationend",
+              () => {
+                btn.removeClass("animated");
+                btn.removeClass("pulse");
+              }
+            );
+        },
+    
+        getLogoStyle() {
+          const direction = this.getDirection()
+          if (direction == "h") {
+            return {
+              height: 54 + "px",
+              marginBottom: 4 + "px"
+            };
+          } else {
+            return {
+              height: "86px",
+              marginBottom: "24px"
+            };
+          }
+        },
+    
+        setCanvasSize() {
+          document.getElementById('canvas').width = window.innerWidth
+          document.getElementById('canvas').height = window.innerHeight
+        },
+    
+        resizeVideoOutput() {
+          if (this.video_reformat) {
+            this.video_reformat.width = window.innerWidth
+            this.video_reformat.height = window.innerHeight
+          }
+        },
+    
+        getCoverStyle() {
+          this.initCover();
+    
+          const direction = this.getDirection()
+          if (direction == "h") {
+            return {
+              width: 30 + "%",
+              height: this.cover.height + "px"
+            };
+          } else {
+            return {
+              width: 80 + "%",
+              height: this.cover.height + "px"
+            };
+          }
+        },
+        getNextBtnStyle() {
+          const direction = this.getDirection()
+          if (direction == "h") {
+            return {
+              right: 24 + "px",
+              left: "auto",
+              bottom: "calc(50% - 20px)",
+              top: "auto",
+              height: "72px",
+              lineHeight: "72px",
+              width: "72px",
+              borderRadius: "50%"
+            };
+          } else {
+            return {
+              width: '120px',
+              background: 'rgba(0, 0, 0, 0.7)',
+              color: 'white',
+              left: 'calc(50% - 60px)',
+              bottom: '48px',
+              height: '40px',
+              borderRadius: '20px',
+              lineHeight: '40px',
+              fontSize: '14px',
+            };
+          }
+        },
+        getLoadingStyle() {
+          if (this.direction == "h") {
+            return {
+              bottom: "160px"
+            };
+          } else {
+            return {}
+          }
+        }
+      }
+    };
+    </script>
+    <style lang="scss" scoped>
+    .loading-layer {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      left: 0;
+      top: 0;
+      z-index: 800;
+      background: black;
+    }
+    
+    .swiper-box {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      position: relative;
+      overflow: hidden;
+    }
+    .clearfix {
+      display: block;
+      clear: both;
+      font-size: 0;
+      height: 0;
+    }
+    
+    .page-1 {
+      .logo {
+        margin: 0px auto 22px;
+        display: block;
+      }
+      .cover {
+        width: 80%;
+        margin: 0 auto;
+        position: relative;
+        canvas {
+          display: block;
+          position: absolute;
+          left: 18.5%;
+          top: 4%;
+        }
+        .cover-img {
+          width: 100%;
+          position: absolute;
+          display: block;
+          z-index: 801;
+        }
+        .fade {
+          background: linear-gradient(
+            to bottom,
+            rgba(0, 0, 0, 0),
+            rgba(0, 0, 0, 1)
+          );
+          position: absolute;
+          left: 0;
+          bottom: 0;
+          width: 100%;
+          height: 72px;
+          z-index: 802;
+          .arrow {
+            position: absolute;
+            width: 20px;
+            left: calc(50% - 10px);
+            top: 8px;
+          }
+          .txt {
+            height: 14px;
+            position: absolute;
+            bottom: 0px;
+            width: 100%;
+            img {
+              height: 100%;
+              display: block;
+              margin: 0 auto;
+            }
+          }
+        }
+      }
+    }
+    .page-2 {
+      .camera_loading {
+        position: absolute;
+        top: 0px;
+        padding-top: 200px;
+        left: 0;
+        width: 100%;
+        color: white;
+        text-align: center;
+        z-index: 999;
+        height: 100%;
+        width: 100%;
+        background: black;
+        font-size: 14px;
+      }
+    }
+    .next_btn {
+      position: absolute;
+      z-index: 998;
+      width: 120px;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      left: calc(50% - 60px);
+      bottom: 48px;
+      height: 40px;
+      border-radius: 20px;
+      line-height: 40px;
+      font-size: 14px;
+      cursor: pointer;
+      outline: none;
+    }
+    
+    .xbgi {
+      position: absolute;
+      left: 0;
+      top: 0;
+      transform-origin: 50% 50%;
+    }
+    
+    .weixin-cover {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      left: 0;
+      top: 0;
+      z-index: 999;
+      background: rgba(0, 0, 0, 1);
+      img {
+        width: 80%;
+        display: block;
+        margin: 36px auto;
+      }
+    }
+    .enter {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      left: 0;
+      top: 0;
+      z-index: 10;
+      background: white;
+    }
+    .container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      padding: 0;
+      margin: 0;
+      background: black;
+    }
+    .main {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      padding: 0;
+      margin: 0;
+      background: transparent;
+      canvas {
+        width: 100%;
+      }
+    }
+    #video {
+      position: absolute;
+      z-index: 999;
+      left: 0;
+      bottom: 0px;
+      display: none;
+    }
+    #canvas {
+      display: block;
+      margin: 0;
+      padding: 0;
+      width: 100%;
+    }
+    .line {
+      display: inline-block;
+      width: 4px;
+      height: 9px;
+      border-radius: 15px;
+      background-color: white;
+      margin: 6px 6px 0;
+      padding-top: 6px;
+    }
+    
+    .loading-anima {
+      text-align: center;
+      position: absolute;
+      width: 100%;
+      bottom: 360px;
+    }
+    .loading-anima .line:nth-last-child(1) {
+      animation: loadingA 1.5s 1s infinite;
+    }
+    .loading-anima .line:nth-last-child(2) {
+      animation: loadingA 1.5s 0.5s infinite;
+    }
+    .loading-anima .line:nth-last-child(3) {
+      animation: loadingA 1.5s 0s infinite;
+    }
+    @keyframes loadingA {
+      0% {
+        height: 15px;
+      }
+      50% {
+        height: 35px;
+      }
+      100% {
+        height: 15px;
+      }
+    }
+    
+    .swiper-container {
+      width: 100%;
+      height: 100%;
+    }
+    .swiper-slide {
+      text-align: center;
+      font-size: 18px;
+      background: black;
+    }
+    </style>
+    
+    
+    

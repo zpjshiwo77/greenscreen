@@ -1,5 +1,4 @@
 body,html,article{
-	background: rgb(242,148,53);
 	overflow: hidden;
 	-webkit-text-size-adjust:100%!important;
 }
@@ -41,5 +40,66 @@ aside{
 }
 /* public end */
 
-
+#cameraMedia{
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 50%;
+    z-index: 1;
+}
+#MediaPanel{
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 200%;
+    height: 100%;
+    z-index: 2;
+    transform: scale(0.5,0.5);
+    transform-origin: left bottom;
+}
+#openCameraBtn{
+    position: absolute;
+    bottom: 20%;
+    left: 50%;
+    width: 3rem;
+    height: 0.7rem;
+    text-align: center;
+    color: #fff;
+    background-color: #333;
+    border-radius: 0.07rem;
+    line-height: 0.7rem;
+    z-index: 9;
+    margin-left: -1.5rem;
+}
+#videoPlay{
+    position: absolute;
+    bottom: 10%;
+    left: 50%;
+    width: 3rem;
+    height: 0.7rem;
+    text-align: center;
+    color: #fff;
+    background-color: #333;
+    border-radius: 0.07rem;
+    line-height: 0.7rem;
+    z-index: 9;
+    margin-left: -1.5rem;
+}
+#main p{
+    color: #fff;
+    text-align: center;
+    position: absolute;
+    top: 45%;
+    left: 0;
+    width: 100%;
+    z-index: 9;
+    font-size: 0.28rem;
+}
+#imgCover{
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+}
 /* main end */
