@@ -29,8 +29,6 @@ $(document).ready(function(){
 
 	//----------------------------------------页面逻辑代码----------------------------------------
 	var video = document.getElementById("cameraMedia");
-	var canvas = document.getElementById("canvas");
-	// var canvasCtx = canvas.getContext('2d');
 	navigator.getUserMedia =  navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
 
 
@@ -61,8 +59,16 @@ $(document).ready(function(){
 	function getMediaSuccess(stream){
 		console.log(stream)
 		video.srcObject = stream;
+
+		icom.fadeIn(loadBox);
+
+		setTimeout(function(){
+			$("#videoPlay").click();
+		},1000);
+
 		video.addEventListener("play", () => {
 			drawCanvas();
+			icom.fadeOut(loadBox);
 		});
 	}
 
@@ -77,11 +83,14 @@ $(document).ready(function(){
 		$("#openCameraBtn").hide();
 		$("#tips").hide();
 		$("#videoPlay").hide();
+		$("#logo").hide();
+		$("#imgCover").css("opacity","1");
 	}//end func
 
 	//把视频呈现在画布上
 	function drawCanvas(){
 		var seriously = new Seriously();
+		creatCanvas();
 
 		var chroma = seriously.effect("chroma");
 		var video_reformat = seriously.transform("reformat");
@@ -89,8 +98,8 @@ $(document).ready(function(){
 
 		video_reformat.source = video;
 		video_reformat.mode = "cover";
-		video_reformat.width = $("#canvas").width();
-		video_reformat.height = $("#canvas").height();
+		video_reformat.width = window.innerWidth;;
+		video_reformat.height = window.innerHeight;
 
 		chroma.weight = 1;
 		chroma.balance = 0.3;
@@ -104,4 +113,10 @@ $(document).ready(function(){
 		seriously.go(); 
 	}//end func
 
+	//创建画布
+	function creatCanvas(){
+		$("#main").append('<canvas id="MediaPanel"></canvas>');
+		$("#MediaPanel")[0].width = window.innerWidth;
+		$("#MediaPanel")[0].height = window.innerHeight;
+	}
 });//end ready

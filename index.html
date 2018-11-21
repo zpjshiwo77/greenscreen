@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>绿幕demo</title>
+<title>彼邑绿幕demo</title>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,target-densitydpi=device-dpi,initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="format-detection" content="telephone=no" />
@@ -19,12 +19,13 @@ ibase.load('css/index.css');//无缓存加载文件
 <body>
 <article>
     <section id="main">
-        <p id="tips">请在自带的浏览器中打开</p>
-        <video id="cameraMedia" playsinline webkit-playsinline  x5-video-player-type="h5" src="video/movie.mp4"></video>
-        <img src="images/test.jpg" id="imgCover">
-        <canvas id="MediaPanel"></canvas>
+        <div id="logo"></div>
+        <p id="tips">彼邑绿幕demo<br>请在自带的浏览器中打开</p>
+        <video id="cameraMedia" playsinline webkit-playsinline  x5-video-player-type="h5"></video>
+        <img src="images/beats/bg.jpg" id="imgCover" class="hide">
+        <!-- <canvas id="MediaPanel"></canvas> -->
         <div id="openCameraBtn">打开摄像头</div>
-        <div id="videoPlay">播放</div>
+        <div id="videoPlay" class="hide">播放</div>
     </section>
 </article>
 <script src="https://res.wx.qq.com/open/js/jweixin-1.3.2.js"></script>
