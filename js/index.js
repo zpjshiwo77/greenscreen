@@ -48,11 +48,17 @@ $(document).ready(function(){
 
 	//调用摄像头初始化
 	function cameraMediaInit(){
-		navigator.getUserMedia({
-			video: {
-				facingMode: "environment"
-			}
-		}, getMediaSuccess, getMediaFail);
+		try{
+			navigator.getUserMedia({
+				video: {
+					facingMode: "environment"
+				}
+			}, getMediaSuccess, getMediaFail);
+		}
+		catch{
+			icom.alert("请在系统自带的浏览器打开！");
+		}
+		
 	}//end func
 
 	//获取媒体流成功
