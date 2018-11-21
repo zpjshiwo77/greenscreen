@@ -55,8 +55,8 @@ $(document).ready(function(){
 				}
 			}, getMediaSuccess, getMediaFail);
 		}
-		catch{
-			icom.alert("请在系统自带的浏览器打开！");
+		catch(err){
+			icom.alert("您正在使用的浏览器不支持，请使用Chrome,火狐或者Safari,或升级系统体验完整功能！");
 		}
 		
 	}//end func
@@ -80,7 +80,7 @@ $(document).ready(function(){
 
 	//获取媒体流失败
 	function getMediaFail(error){
-		icom.alert("您的浏览器不支持打开摄像头！");
+		icom.alert("您正在使用的浏览器不支持，请使用Chrome,火狐或者Safari,或升级系统体验完整功能！");
 	}
 
 	//视频播放
